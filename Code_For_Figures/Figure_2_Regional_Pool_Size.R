@@ -102,9 +102,9 @@ p <- ggplot(df, aes(x = nsp_str, y = species_richness,
     legend.justification = c(0, 1),
     legend.background = element_rect(fill = scales::alpha("white", 0.85),
                                      color = "black"),
-    legend.key.width  = unit(1.4, "lines"),
-    legend.key.height = unit(1.1, "lines"),
-    legend.text       = element_text(size = 10, color = "black")
+    legend.key.width  = unit(1.7, "lines"),
+    legend.key.height = unit(1.2, "lines"),
+    legend.text       = element_text(size = 13, color = "black")
   )
 
 print(p)
@@ -113,7 +113,7 @@ print(p)
 svg_out <- file.path(figures_dir, "Fig2_Richness_vs_nspecies.svg")
 pdf_out <- file.path(figures_dir, "Fig2_Richness_vs_nspecies.pdf")
 
-ggsave(svg_out, p, width = 8 * .7, height = 10 * .7, dpi = 300)
+ggsave(svg_out, p, width = 8 * .8, height = 10 * .7, dpi = 300)
 ggsave(pdf_out, p, width = 7, height = 7)
 
 message("Saved: ", svg_out, " and ", pdf_out)

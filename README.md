@@ -57,14 +57,6 @@ Pkg.activate(".")    # activate this project
 Pkg.instantiate()    # install exact dependencies from Manifest.toml
 ```
 
-### Example run (Figure 2G)
-
-```julia
-using Pkg
-Pkg.activate(".")     
-cd("Hab_Par_New/HP_JCE_Sims")
-include("run/Figure_Regional_Pool_Size.jl")
-```
 
 Other figure panels have analogous scripts in the `run/` folder.
 
@@ -88,8 +80,23 @@ Functions are described within the scripts themselves.
 ### Run scripts (`HP_JCE_Sims/run/`)
 
 ```text
-Figure_Regional_Pool_Size.jl       — runs simulations for Figure 2G
-Fig_3A_Moore_Sigma_Low_AutoCor_No_Disp_Lim.lj  — runs simulations for Figure 3A
+Figure_Regional_Pool_Size.jl                        — runs simulations for Figure 2G (regional pool size sweep)
+Fig_3A_Moore_Sigma_Low_AutoCor_No_Disp_Lim.jl      — runs simulations for Figure 3A (low spatial autocorrelation, no dispersal limitation)
+Fig_3B_Moore_Sigma_High_AutoCor_No_Disp_Lim.jl     — runs simulations for Figure 3B (high spatial autocorrelation, no dispersal limitation)
+Fig_3C_Moore_Sigma_Low_AutoCor_Disp_Lim_SigmaD_15.jl  — runs simulations for Figure 3C (low autocorrelation, dispersal limitation σ_D=1.5)
+Fig_3D_Moore_Sigma_High_AutoCor_Disp_Lim_SigmaD_15.jl — runs simulations for Figure 3D (high autocorrelation, dispersal limitation σ_D=1.5)
+Fig_4_Simulations_Roughness_Range.jl               — runs Figure 4 sweeps over habitat roughness × range
+Fig_4_Simulations_Roughness_Range_avar.jl          — runs Figure 4 (alternative/“avar” variant of roughness × range analysis)
+Fig_4_Simulations_Roughness_Range_Stress_Tol.jl    — runs Figure 4 (stress–tolerance variant of roughness × range analysis)
+Fig_5_Simulations_All_Figures.jl                   — runs all Figure 5 panels (composite simulation batch)
+Fig_6_JCE_HP_With_Global.jl                        — runs Figure 6 (JC + HP with globally acting JC-effects)
+Fig_6_JCE_Only_With_Global.jl                      — runs Figure 6 (JC-only with globally acting JC-effects)
+Fig_6_JCE_Only_With_Global_Disp_Lim.jl             — runs Figure 6 (JC-only, global JC-effects + dispersal limitation)
+Fig_6_Kappa_Calculation_disp_lim.jl                — computes κ metrics for Figure 6 (with dispersal limitation)
+Fig_6_Kappa_Calculation_no_disp_lim.jl             — computes κ metrics for Figure 6 (no dispersal limitation)
+run_sim.jl                                         — generic runner/CLI entry point for launching configured simulations
+Appendix_SST_High_AutoCor_No_Disp_Lim.jl           — appendix: SST variant, high spatial autocorrelation, no dispersal limitation
+Appendix_SST_Low_AutoCor_No_Disp_Lim.jl            — appendix: SST variant, low spatial autocorrelation, no dispersal limitation
 ```
 
 Simulation outputs are written to subfolders of:
@@ -118,7 +125,10 @@ install.packages(c(
   "scales",
   "readr",
   "purrr",
-  "tidyr"
+  "tidyr",
+  "stringr",
+  "patchwork",
+  "grid"
 ))
 ```
 
@@ -126,11 +136,11 @@ install.packages(c(
 
 ```text
 Code_For_Figures/Figure_2_Regional_Pool_Size.R
-Code_For_Figures/Figure_3_Heatmaps.R
+Code_For_Figures/Figure_2_Analytical_Results_Current_Version.R
+Code_For_Figures/Figure_3_Make_Plots.R
 Code_For_Figures/Figure_4_heatmaps_scatter.R
 Code_For_Figures/Figure_5_Make_Plot.R
 Code_For_Figures/Figure_6_Make_Plot.R
-Code_For_Figures/Figure_2_Analytical_Results_Current_Version.R
 ```
 
 ### Supplementary Information (R)
@@ -147,8 +157,8 @@ Code_For_Figures/SI_FIgure_Cov_scatter_Tol_Fec.R
 Code_For_Figures/Visualization_Scripts/
 ```
 
-Contains helper plotting code.  
-*(Not fully streamlined; may require light edits before use.)*
+Contains code used to make the illustrations. 
+*(Not fully streamlined; may require light edits before use; not needed for reproducing any results.)*
 
 ---
 
@@ -158,10 +168,20 @@ Contains helper plotting code.
 
 ```julia
 using Pkg
-Pkg.activate("."); Pkg.instantiate()
+Pkg.activate("Hab_Par_New/HP_JCE_Sims")
+Pkg.instantiate()  # first run only (downloads deps)
 include("run/<desired_script>.jl")
 ```
 
+#### Example run (for Figure 2G)
+Then (how I run it) -- if your shell is already at the project root (the folder with Project.toml and run/):
+
+```julia
+using Pkg
+Pkg.activate(".")     
+cd("Hab_Par_New/HP_JCE_Sims")
+include("run/Figure_Regional_Pool_Size.jl")
+```
 Outputs will appear in:
 
 ```text

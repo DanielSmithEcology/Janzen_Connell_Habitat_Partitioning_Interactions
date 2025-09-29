@@ -1,14 +1,22 @@
 #!/usr/bin/env Rscript
 # ==========================================================
-# Script: Figure_6_Make_Plot>R
+# Script: Figure_6_Make_Plot.R
 #
 # Description:
-#   Generates Fig. 6 (2×2), JC-only vs JC+HP, with groups by range_str.
-#   Uses a custom x-axis "gap" to place the Global point to the right.
+#   Generates Fig. 6 (2×2), JC-only vs JC+HP, with:
+#     - JC-only richness panel overlaid with Dispersal-Limited curve (red triangles)
+#     - JC-only functional panel comparing TWO κ-adjusted functions:
+#         σ_D = ∞   (no dispersal limit; uses Summary_JCE_Only_Kappa_Values_no_disp_lim.csv)
+#         σ_D = 1.0 (dispersal-limited; uses Summary_JCE_Only_Disp_Lim_Kappa_Values.csv)
+#       Global (M=99) is forced to 25 and any negative values are removed (NA)
+#     - HP panels grouped by range_str
 #
 # Inputs (relative to repo root):
 #   HP_JCE_Sims/Outputs/Fig_6/simulation_outputs_Fig_6/Fig_6_JCE_Only/Summary_JCE_Only.csv
 #   HP_JCE_Sims/Outputs/Fig_6/simulation_outputs_Fig_6/Fig_6_JCE_HP/Summary_JCE_HP.csv
+#   HP_JCE_Sims/Outputs/Fig_6/simulation_outputs_Fig_6/Fig_6_JCE_Only_Disp_Lim/Summary_JCE_Only_Disp_Lim.csv
+#   HP_JCE_Sims/Outputs/Fig_6/simulation_outputs_Fig_6/Fig_6_JCE_Only_Disp_Lim/Summary_JCE_Only_Disp_Lim_Kappa_Values.csv
+#   HP_JCE_Sims/Outputs/Fig_6/simulation_outputs_Fig_6/Fig_6_JCE_Only/Summary_JCE_Only_Kappa_Values_no_disp_lim.csv
 #
 # Outputs:
 #   Figures/Fig6_2x2_grouped.svg
@@ -44,17 +52,25 @@ figures_dir <- file.path(repo_dir, "Figures")
 if (!dir.exists(figures_dir)) dir.create(figures_dir, recursive = TRUE, showWarnings = FALSE)
 
 # ---------- File paths ----------
-f_only <- file.path(fig6_base, "Fig_6_JCE_Only", "Summary_JCE_Only.csv")
-f_hp   <- file.path(fig6_base, "Fig_6_JCE_HP",   "Summary_JCE_HP.csv")
+f_only            <- file.path(fig6_base, "Fig_6_JCE_Only",          "Summary_JCE_Only.csv")
+f_hp              <- file.path(fig6_base, "Fig_6_JCE_HP",            "Summary_JCE_HP.csv")
+f_only_DispLim    <- file.path(fig6_base, "Fig_6_JCE_Only_Disp_Lim", "Summary_JCE_Only_Disp_Lim.csv")
+f_kappa_disp      <- file.path(fig6_base, "Fig_6_JCE_Only_Disp_Lim", "Summary_JCE_Only_Disp_Lim_Kappa_Values.csv")
+f_kappa_nodisp    <- file.path(fig6_base, "Fig_6_JCE_Only",          "Summary_JCE_Only_Kappa_Values_no_disp_lim.csv")
 
 # ---------- Load data ----------
 d_only <- readr::read_csv(f_only, show_col_types = FALSE)
 d_hp   <- readr::read_csv(f_hp,   show_col_types = FALSE) %>%
-  # Legend/order: 0.5 (top), 0.1 (middle), 0.05 (bottom)
   mutate(range_str = factor(range_str, levels = c("0_5", "0_1", "0_05")))
 
+# Dispersal-limited JC-only series (for richness overlay)
+d_only_disp <- readr::read_csv(f_only_DispLim, show_col_types = FALSE)
+
+# κ values (M, Kappa): dispersal-limited and no-dispersal-limit
+d_kappa_disp   <- readr::read_csv(f_kappa_disp,   show_col_types = FALSE) %>% mutate(M = as.integer(M))
+d_kappa_nodisp <- readr::read_csv(f_kappa_nodisp, show_col_types = FALSE) %>% mutate(M = as.integer(M))
+
 # ---------- Axis break helper ----------
-# Places "Global" at a controlled offset to the right of max finite M (default 0.35 * span)
 prep_global <- function(df, global_offset_factor = 0.35) {
   finite <- df %>% filter(M != 99)
   finite_max <- max(finite$M, na.rm = TRUE)
@@ -102,9 +118,10 @@ plot_with_global <- function(df_info, yvar, ylab,
                              group_var = NULL,
                              color_values = NULL,
                              shape_values = NULL,
-                             legend_title = NULL,
+                             legend_title = NULL,   # can be character: e.g. "sigma[D]"
                              bridge_start = NULL,
-                             bridge_end   = NULL) {
+                             bridge_end   = NULL,
+                             labels_map   = NULL) { # named CHAR vector: c(key="sigma[D]==infinity", ...)
   
   df <- df_info$df
   global_val <- df_info$global_val
@@ -154,13 +171,27 @@ plot_with_global <- function(df_info, yvar, ylab,
     if (is.null(shape_values)) {
       shape_values <- c("0_5" = 15, "0_1" = 17, "0_05" = 16)
     }
-    if (is.null(legend_title)) legend_title <- "Range"
-    lvls <- levels(df[[group_var]]); lbls <- gsub("_", ".", lvls, fixed = TRUE)
+    
+    lvls <- levels(df[[group_var]])
+    if (is.null(lvls)) lvls <- unique(df[[group_var]])
+    
+    if (!is.null(labels_map)) {
+      if (is.character(labels_map)) {
+        lbl_chr <- unname(labels_map[lvls]); lbls <- parse(text = lbl_chr)
+      } else if (is.list(labels_map)) {
+        lbls <- as.expression(labels_map[lvls])
+      } else if (is.expression(labels_map)) {
+        lbls <- labels_map[lvls]
+      } else stop("labels_map must be character, list, or expression.")
+    } else {
+      lbls <- gsub("_", ".", lvls, fixed = TRUE)
+    }
     
     p <- p +
-      scale_color_manual(values = color_values, limits = lvls, labels = lbls, name = legend_title) +
-      scale_shape_manual(values = shape_values, limits = lvls, labels = lbls, name = legend_title) +
-      guides(color = guide_legend(override.aes = list(linetype = 0, size = 4.2))) +
+      scale_color_manual(values = color_values, limits = lvls, labels = lbls, name = NULL) +
+      scale_shape_manual(values = shape_values, limits = lvls, labels = lbls, name = NULL) +
+      guides(color = guide_legend(override.aes = list(linetype = 0, size = 4.2)),
+             shape = guide_legend(override.aes = list(linetype = 0, size = 4.2))) +
       theme(
         legend.position      = c(0.98, 0.98),
         legend.justification = c("right", "top"),
@@ -168,6 +199,11 @@ plot_with_global <- function(df_info, yvar, ylab,
         legend.title         = element_text(size = 16),
         legend.text          = element_text(size = 14)
       )
+    
+    if (!is.null(legend_title)) {
+      lt <- if (is.character(legend_title)) parse(text = legend_title)[[1]] else legend_title
+      p <- p + labs(color = lt, shape = lt)
+    }
   }
   
   # Gap geometry & connectors
@@ -225,8 +261,9 @@ plot_with_global <- function(df_info, yvar, ylab,
   
   # Points on top
   if (!is.null(group_var)) {
-    size_values <- c("0_05" = 4.0, "0_1" = 4.0, "0_5" = 5.0)
-    for (lvl in levels(df[[group_var]])) {
+    size_values <- setNames(rep(4.0, length(lvls)), lvls)
+    if ("0_5" %in% names(size_values)) size_values["0_5"] <- 5.0
+    for (lvl in lvls) {
       df_sub <- df %>% filter(.data[[group_var]] == lvl)
       p <- p +
         geom_point(
@@ -258,24 +295,75 @@ plot_with_global <- function(df_info, yvar, ylab,
 d_only_info <- prep_global(d_only, global_offset_factor = 0.35)
 d_hp_info   <- prep_global(d_hp,   global_offset_factor = 0.35)
 
-# JC-only: derive fun_val and (optionally) override Global value for that panel
+# JC-only richness OVERLAY: σ_D ∞ (grey) vs 1.0 (red)
+d_only$disp_str      <- factor("infty", levels = c("infty", "1_0"))
+d_only_disp$disp_str <- factor("1_0",  levels = c("infty", "1_0"))
+d_only_both <- bind_rows(d_only, d_only_disp) %>%
+  mutate(fun_val = (1 - exp(-a)) * (M^2))
+d_only_both_info <- prep_global(d_only_both, global_offset_factor = 0.35)
+
+# JC-only: baseline fun_val and Global override for reference (used for y-label only)
 d_only_info$df <- d_only_info$df %>%
   mutate(fun_val = (1 - exp(-a)) * (M^2))
 d_only_info$df$fun_val[d_only_info$df$M == 99] <- 25
 
 # ---------- Build panels ----------
+# (A) JC-only richness with σ_D overlay
 p_only_rich <- plot_with_global(
-  d_only_info, "species_richness", "Species richness",
+  d_only_both_info, "species_richness", "Species richness",
   gap_start_frac = 0.47, gap_end_frac = 0.61,
-  bridge_start   = 0.02, bridge_end   = 0.98
-)
+  bridge_start   = 0.02, bridge_end   = 0.98,
+  group_var      = "disp_str",
+  color_values   = c("infty" = "grey35", "1_0" = "#E11D48"),
+  shape_values   = c("infty" = 16,       "1_0" = 17),
+  legend_title   = "sigma[D]",
+  labels_map     = c("infty" = "sigma[D]==infinity", "1_0" = "sigma[D]==1.0")
+) +
+  theme(
+    legend.position      = c(0.98, 0.86),
+    legend.justification = c("right", "top")
+  )
+
+# ---------- Functional panel: TWO κ-adjusted curves (no baseline line)
+# Compute fun_plot = a * M^2 * (1 - (a/2) * Kappa) for both σ_D variants; force Global=25; drop negatives
+fun_infty <- d_only_info$df %>%                     # contains M, a, M_plot, etc.
+  left_join(d_kappa_nodisp, by = "M") %>%           # Kappa from no-disp-limit run
+  transmute(M, M_plot, is_global, a,
+            disp_str = factor("infty", levels = c("infty", "1_0")),
+            fun_plot = a * (M^2) * (1 - (a/2) * Kappa))
+
+fun_1_0 <- d_only_info$df %>%
+  left_join(d_kappa_disp, by = "M") %>%             # Kappa from disp-limit run
+  transmute(M, M_plot, is_global, a,
+            disp_str = factor("1_0",  levels = c("infty", "1_0")),
+            fun_plot = a * (M^2) * (1 - (a/2) * Kappa))
+
+fun_two_info <- d_only_info
+fun_two_info$df <- bind_rows(fun_infty, fun_1_0) %>%
+  mutate(
+    fun_plot = ifelse(M == 99, 25, fun_plot),       # Global override
+    fun_plot = ifelse(fun_plot < 0, NA_real_, fun_plot)
+  )
 
 p_only_fun <- plot_with_global(
-  d_only_info, "fun_val", expression((1 - e^{-a}) * M^2),
+  fun_two_info,
+  "fun_plot",
+  # y-axis label kept as canonical form for continuity
+  expression( bar(E[x] * "[" * J(x) * "]")/N),
   gap_start_frac = 0.47, gap_end_frac = 0.61,
-  bridge_start   = 0.02, bridge_end   = 0.98
-)
+  bridge_start   = 0.02,  bridge_end   = 0.98,
+  group_var      = "disp_str",
+  color_values   = c("infty" = "grey35", "1_0" = "#E11D48"),
+  shape_values   = c("infty" = 16,       "1_0" = 17),
+  legend_title   = "sigma[D]",
+  labels_map     = c("infty" = "sigma[D]==infinity", "1_0" = "sigma[D]==1.0")
+) +
+  theme(
+    legend.position      = c(0.98, 0.86),
+    legend.justification = c("right", "top")
+  )
 
+# (C) HP richness (grouped by range)
 p_hp_rich <- plot_with_global(
   d_hp_info, "species_richness", "Species richness",
   group_var = "range_str",
@@ -284,9 +372,10 @@ p_hp_rich <- plot_with_global(
   legend_title = "Range"
 )
 
+# (D) HP covariance (grouped by range)
 p_hp_cov <- plot_with_global(
   d_hp_info, "scaled_cov",
-  expression(bar(Cov)[x]~bgroup("(", J(x)~","~~H(x)/rho, ")")),
+  expression(bar(Cov)[x]~bgroup("(", J(x)~","~~H(x)/mu[H(x)], ")")),
   group_var = "range_str",
   gap_start_frac = 0.47, gap_end_frac = 0.61,
   bridge_start   = 0.02, bridge_end   = 0.98,

@@ -78,8 +78,8 @@ df <- df %>%
   )
 
 # ---- Common axis labels ----
-x_lab <- "Range of variation"
-y_lab <- "Noise (nugget) of variation"
+x_lab <- "Range of habitat variation"
+y_lab <- "Nugget (noise) of variation"
 
 # ---- Shared legend style helper (vertical, title on left) ----
 legend_style <- list(
@@ -139,7 +139,7 @@ p_cov <- ggplot(df, aes(x = Range_f, y = Sigma_f, fill = scaled_cov)) +
   geom_text(aes(label = sprintf("%.2f", scaled_cov)),
             color = "grey70", fontface = "bold", size = 3.2) +
   scale_fill_viridis(option = "D", limits = c(c_min, c_max), breaks = c_breaks,
-                     name = expression(bar(Cov)[x]~bgroup("(", J(x)~","~~H(x)/rho, ")"))) +
+                     name = expression(bar(Cov)[x]~bgroup("(", J(x)~","~~H(x)/mu[H(x)], ")"))) +
   labs(x = x_lab, y = y_lab) +
   scale_x_discrete(expand = c(0, 0)) +
   scale_y_discrete(expand = c(0, 0)) +
@@ -159,7 +159,7 @@ p_cov <- ggplot(df, aes(x = Range_f, y = Sigma_f, fill = scaled_cov)) +
 p_scatter <- ggplot(df, aes(x = scaled_cov, y = species_richness)) +
   geom_point(color = "black", fill = "grey40", shape = 21, size = 4.5, alpha = 1.0) +
   labs(
-    x = expression(bar(Cov)[x]~bgroup("(", J(x)~","~~H(x)/rho, ")")),
+    x = expression(bar(Cov)[x]~bgroup("(", J(x)~","~~H(x)/mu[H(x)], ")")),
     y = "Species richness"
   ) +
   theme_classic(base_size = 14) +
